@@ -168,6 +168,13 @@ server <- function(input, output, session) {
       write_xlsx(download_data(), file)
     }
   )
+  # Workaround for Chromium Issue 468227
+  downloadButton <- function(...) {
+    tag <- shiny::downloadButton(...)
+    tag$attribs$download <- NULL
+    tag
+  }
+
   output$report_download_ui <- renderUI({
     req(report())
     downloadButton("report_download", "Download Results")
