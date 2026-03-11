@@ -16,7 +16,11 @@ options(shiny.maxRequestSize = 30 * 1024^2)
 source("R/data_validator.R")
 
 ui <- page_sidebar(
-  title = "Data Validation App",
+  title = div(
+    "Data Validation App",
+    style = "display: flex; justify-content: space-between; align-items: center; width: 100%;",
+    actionButton("reset_app", "Reset", icon = icon("sync"), class = "btn-sm")
+  ),
   useShinyjs(),
 
   sidebar = sidebar(
@@ -45,6 +49,19 @@ ui <- page_sidebar(
 )
 
 server <- function(input, output, session) {
+  observeEvent(input$reset_app, {
+    # Reset inputs
+    shinyjs::reset("file1")
+    updateSelectInput(session, "select_sheet", choices = character(0), selected = NULL)
+    updateTextInput(session, "site_name_input", value = "")
+
+    # Reset outputs
+    output$error_summary_table <- DT::renderDataTable(NULL)
+    output$error_full_table <- DT::renderDataTable(NULL)
+    output$missing_summary <- DT::renderDataTable(NULL)
+    output$report_download_ui <- renderUI(NULL)
+  })
+
   observeEvent(input$file1, {
     file_path <- input$file1$datapath
 
