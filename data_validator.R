@@ -50,6 +50,16 @@ df <- df|>
     age=as.numeric(age)
   )
 
+# Allow these two columns to be missing entirely, but create them as NA if they are
+missing_cols <- c("gender_id", "immigration_status_undoc")
+existing_missing <- missing_cols[!missing_cols %in% names(df)]
+
+if (length(existing_missing) > 0) {
+  for (col in existing_missing) {
+    df[[col]] <- NA_character_
+  }
+}
+
 #incorporate a missing data check for key variables
 missing_demographics <- df |>
   select(vital_status_alive,
@@ -115,7 +125,7 @@ validate(data = df,
                 poverty_level,
                 description = "invalid value for poverty_level, should be 1, 2, 3, or 4") |>
  validate_cols(predicate = in_set(c("0","1")),
-               immigration_status_undoc,
+               any_of("immigration_status_undoc"),
                description = "invalid value for immigration_status_undoc, should be 0 or 1") |>
   validate_cols(predicate = in_set(c("1","2","3","4","5","6","7","8","20")),
                 language,
