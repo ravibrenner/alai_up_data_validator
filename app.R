@@ -97,7 +97,7 @@ server <- function(input, output, session) {
 
     report()$final_report |>
       tibble::as_tibble() |>
-      summarize(.by = description,
+      summarize(.by = short_message,
                 error_count = n()) |>
       arrange(desc(error_count)) |>
       DT::datatable(
@@ -116,6 +116,7 @@ server <- function(input, output, session) {
   output$error_full_table <- DT::renderDataTable({
     req(report())
     report()$final_report |>
+      select(-short_message) |>
       DT::datatable(
         filter = "top",
         options = list(
@@ -146,12 +147,24 @@ server <- function(input, output, session) {
       )
   })
 
+  download_data <- reactive({
+    req(report())
+
+    # Get the report data
+    current_report <- report()
+    # Remove the 'short_message' column from the final_report dataframe within the current_report list
+    current_report$final_report <- current_report$final_report |>
+      select(-short_message)
+    # Return the modified report list
+    return(current_report)
+  })
+
   output$report_download <- downloadHandler(
     filename = function() {
       paste0(input$site_name_input, "_data_validation_report_",Sys.Date(),".xlsx")
     },
     content = function(file) {
-      write_xlsx(report(), file)
+      write_xlsx(download_data(), file)
     }
   )
   output$report_download_ui <- renderUI({

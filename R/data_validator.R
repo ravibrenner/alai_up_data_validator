@@ -18,7 +18,6 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
     mutate(alai_up_uid=suppressWarnings(as.numeric(alai_up_uid)))|>
     filter(!is.na(alai_up_uid))
   
-  
   # Data preprocessing
   update_progress(detail = "Preprocessing data...")
   df <- df|>
@@ -594,7 +593,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
   update_progress(detail = "Generating final report...")
   final_report <- get_results(report, unnest = T) |>
     filter(type == "error") |>
-    left_join(df |>
+    left_join(df |>  
                 mutate(index = row_number()) |>
                 select(index,alai_up_uid)) |>
     mutate(value = str_split(value,", ")) |>
@@ -630,8 +629,37 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
       table_name == "icab_events_whole" & column == "discontinued_extreme_date" ~ "icab_rpv_discontinued_date",
       table_name == "icab_events_whole" & column == "discontinue_valid" ~ "icab_rpv_discontinued",
       table_name == "icab_events_whole" & column == "initiate_after_rx" ~ "icab_rpv_rx_date, icab_rpv_shot1_date"
-    )) |>
-    select(alai_up_uid,description,column_new) |>
+    ),
+    short_message = case_when(
+      table_name %in% c("df", "not_elig_df","disinterest_df","discontinued_df") ~ description,
+      table_name == "vl_summary" & column == "any_vl_violation" ~ "VL not in sequential order",
+      table_name == "vl_summary" & column == "any_missing_vl_result" ~ "Viral load result missing",
+      table_name == "vl_summary" & column == "any_vl_in_future" ~ "Viral load date is in the future",
+      table_name == "shot_summary" & column == "any_shot_violation" ~ "iCAB/RPV shot dates are not in sequential order",
+      table_name == "shot_summary" & column == "any_missing_dose" ~ "iCAB/RPV dose value is missing",
+      table_name == "shot_summary" & column == "any_missing_first_dose" ~ "Patient has information for later iCAB/RPV shot doses (e.g., shot2 or shot3), but is missing the date of first dose",
+      table_name == "shot_summary" & column == "missing_pre_icab_vl" ~ "Pre-iCAB/RPV VL is missing",
+      table_name == "shot_summary" & column == "any_late_dose" ~ "iCAB/RPV dose is late",
+      table_name == "shot_summary" & column == "any_early_dose" ~ "iCAB/RPV dose is early",
+      table_name == "shot_summary" & column == "any_shot_in_future" ~ "iCAB/RPV shot date is in future",
+      table_name == "shot_summary" & column == "any_early_date" ~ "iCAB/RPV shot date is before January 22, 2021 (before iCAB/RPV was FDA approved)",
+      table_name == "icab_events_whole" & column == "ever_counselled_VALID" ~ "Counsel_ever is not correctly documented",
+      table_name == "icab_events_whole" & column == "ever_screened_VALID" ~ "Screen_ever is not correctly documented",
+      table_name == "icab_events_whole" & column == "prescribe_NOT_interested" ~ "Patient has been prescribed iCAB/RPV but last counsel outcome is not 'interested'",
+      table_name == "icab_events_whole" & column == "prescribe_NOT_eligible" ~ "Patient has been prescribed iCAB/RPV but screening outcome is 0 (not eligible) or missing",
+      table_name == "icab_events_whole" & column == "prescribe_BEFORE_screen" ~ "iCAB/RPV prescription date is before the screening date",
+      table_name == "icab_events_whole" & column == "prescribe_BEFORE_counsel" ~ "iCAB/RPV prescription date is before the counseling date",
+      table_name == "icab_events_whole" & column == "first_counsel_valid" ~ "Missing iCAB/RPV first counseling date",
+      table_name == "icab_events_whole" & column == "first_screen_valid" ~ "Missing iCAB/RPV first screening date",
+      table_name == "icab_events_whole" & column == "counsel_extreme_date" ~ "iCAB/RPV counsel date is before January 22, 2021 (before iCAB/RPV was FDA approved) or after today's date",
+      table_name == "icab_events_whole" & column == "screen_extreme_date" ~ "iCAB/RPV screening date is before January 22, 2021 (before iCAB/RPV was FDA approved) or after today's date",
+      table_name == "icab_events_whole" & column == "rx_extreme_date" ~ "iCAB/RPV prescription date is before January 22, 2021 (before iCAB/RPV was FDA approved) or after today's date",
+      table_name == "icab_events_whole" & column == "discontinued_extreme_date" ~ "iCAB/RPV discontinuation date is before January 22, 2021 (before iCAB/RPV was FDA approved) or after today's date",
+      table_name == "icab_events_whole" & column == "discontinue_valid" ~ "iCAB/RPV discontinued date is before first iCAB/RPV shot date",
+      table_name == "icab_events_whole" & column == "initiate_after_rx" ~ "Date of iCAB/RPV initiation (shot 1 date) is before iCAB/RPV prescription date",
+    )
+    )  |>
+    select(alai_up_uid,description,column_new,short_message) |>
     separate(column_new,sep = ", ",
              into = c("col1","col2"))
   
@@ -652,11 +680,17 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
   }
   
   final_report <- final_report |>
-    select(alai_up_uid, description, col1, val1, col2, val2) |>
+    select(alai_up_uid, description, col1, val1, col2, val2,short_message) |>
     rename(column1 = col1,
            value1 = val1,
            column2 = col2,
-           value2 = val2)
+           value2 = val2) |>
+    mutate(date_difference = case_when(
+      !is.na(value1) & !is.na(value2) & 
+        str_detect(column1,"date") & str_detect(column2,"date") ~ 
+        as.character(as.Date(value2,format = "%Y-%m-%d") - as.Date(value1,format = "%Y-%m-%d")),
+      TRUE ~ NA_character_
+    ))
   
   update_progress(detail = "Done.")
   return(list(final_report = final_report,
