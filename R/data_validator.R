@@ -1,6 +1,15 @@
-data_validation_report <- function(filename,sheet_choice) {
+data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
+  
+  today <- Sys.Date()
+  # Helper function to update progress if the updater is provided
+  update_progress <- function(detail = NULL) {
+    if (is.function(progress_updater)) {
+      progress_updater(detail = detail)
+    }
+  }
   
   ## Read in data and do some very basic processing
+  update_progress(detail = "Reading data...")
   df <- read_xlsx(filename,
                   sheet = sheet_choice,
                   col_types = "text",
@@ -9,7 +18,9 @@ data_validation_report <- function(filename,sheet_choice) {
     mutate(alai_up_uid=suppressWarnings(as.numeric(alai_up_uid)))|>
     filter(!is.na(alai_up_uid))
   
+  
   # Data preprocessing
+  update_progress(detail = "Preprocessing data...")
   df <- df|>
     # convert date columns do correct format
     mutate(across(contains("date"),
@@ -28,6 +39,7 @@ data_validation_report <- function(filename,sheet_choice) {
     )
   
   # Allow these two columns to be missing entirely, but create them as NA if they
+  update_progress(detail = "Handling missing columns...")
   missing_cols <- c("gender_id", "immigration_status_undoc")
   existing_missing <- missing_cols[!missing_cols %in% names(df)]
   
@@ -38,6 +50,7 @@ data_validation_report <- function(filename,sheet_choice) {
   }
   
   #incorporate a missing data check for key variables
+  update_progress(detail = "Checking missing demographics...")
   missing_demographics <- df |>
     select(vital_status_alive,
            zip_code,
@@ -61,9 +74,9 @@ data_validation_report <- function(filename,sheet_choice) {
                  names_to = c("column",".value"),
                  names_pattern = "(.*).(n_missing)")
   
-  
   # Initialize the report
-  report <- data_validation_report() # Add validation to the report
+  update_progress(detail = "Running initial validations...")
+  report <- data.validator::data_validation_report() # Add validation to the report
   validate(data = df,
            description = "Validation Test") |>
     validate_if(is_uniq(alai_up_uid), description = "ID is unique") |>
@@ -135,6 +148,7 @@ data_validation_report <- function(filename,sheet_choice) {
   
   
   #not eligible reasons
+  update_progress(detail = "Checking 'not eligible' reasons...")
   not_elig_df <- df |>
     select(alai_up_uid, contains("not_elig")&contains("reason")&!contains("oth")) |>
     mutate(across(contains("not_elig")&contains("reason")&!contains("oth"),
@@ -155,6 +169,7 @@ data_validation_report <- function(filename,sheet_choice) {
     add_results(report = report)
   
   # Disinterest reasons
+  update_progress(detail = "Checking 'disinterest' reasons...")
   disinterest_df <- df |>
     select(alai_up_uid, contains("disinterest")&contains("reason")&!contains("oth")) |>
     mutate(across(contains("disinterest")&contains("reason")&!contains("oth"),
@@ -176,6 +191,7 @@ data_validation_report <- function(filename,sheet_choice) {
   
   
   # Discontinued reasons
+  update_progress(detail = "Checking 'discontinued' reasons...")
   discontinued_df <- df |>
     select(alai_up_uid, contains("discontinued")&contains("reason")&!contains("oth")) |>
     mutate(across(contains("discontinued")&contains("reason")&!contains("oth"),
@@ -196,6 +212,7 @@ data_validation_report <- function(filename,sheet_choice) {
     add_results(report = report)
   
   # Viral load data
+  update_progress(detail = "Processing viral load data...")
   vl_long <- df|>
     select(alai_up_uid,contains("hiv_vl")&!contains("dx")&!contains("pre_icab"))|>
     pivot_longer(cols=contains("hiv_vl"),
@@ -238,6 +255,7 @@ data_validation_report <- function(filename,sheet_choice) {
                                  paste(paste(index[date_in_future != "OK"],collapse = ", ")),
                                  "0"))
   
+  update_progress(detail = "Validating viral load data...")
   validate(data = vl_summary, description = "VL issues") |>
     validate_cols(predicate = in_set(c("0")),
                   any_vl_violation,
@@ -251,6 +269,7 @@ data_validation_report <- function(filename,sheet_choice) {
     add_results(report = report)
   
   # Injection data
+  update_progress(detail = "Processing injection data...")
   shot_long <- df|>
     select(alai_up_uid,contains("icab_rpv_shot") & (contains("date") | contains("dose")),
            contains("pre_icab"))|>
@@ -337,6 +356,7 @@ data_validation_report <- function(filename,sheet_choice) {
                                "0")
     )
   
+  update_progress(detail = "Validating injection data...")
   validate(data = shot_summary, description = "Shot issues") |>
     validate_cols(predicate = in_set(c("0")),
                   any_shot_violation,
@@ -367,6 +387,7 @@ data_validation_report <- function(filename,sheet_choice) {
   
   
   ## iCAB-related events
+  update_progress(detail = "Processing iCAB-related events...")
   icab_events_long <- df|>
     filter(!is.na(alai_up_uid))|>
     select(alai_up_uid,contains("counsel"),contains("screen"),contains("rx"),
@@ -523,6 +544,7 @@ data_validation_report <- function(filename,sheet_choice) {
   icab_events_whole=merge(icab_events,icab_2,by="alai_up_uid") |>
     distinct()
   
+  update_progress(detail = "Validating iCAB logic...")
   validate(data = icab_events_whole, description = "iCAB logic check") |>
     validate_cols(predicate = in_set(c(1)),
                   ever_counselled_VALID,
@@ -568,8 +590,8 @@ data_validation_report <- function(filename,sheet_choice) {
                   description = "Warning: iCAB/RPV discontinuation date is before January 22, 2021 (before iCAB/RPV was FDA approved) or after today’s date. Check to ensure that the discontinuation date is correct.") |>
     add_results(report = report)
   
-  
   # create the final report, edit excel instructions
+  update_progress(detail = "Generating final report...")
   final_report <- get_results(report, unnest = T) |>
     filter(type == "error") |>
     left_join(df |>
@@ -615,6 +637,8 @@ data_validation_report <- function(filename,sheet_choice) {
   
   final_report$val1 <- NA_character_
   final_report$val2 <- NA_character_
+  
+  update_progress(detail = "Fetching values for report...")
   for (i in 1:nrow(final_report)){
     final_report$val1[i] = as.character(pull(df[df$alai_up_uid == final_report$alai_up_uid[i],
                                                 final_report$col1[i]]))
@@ -634,9 +658,10 @@ data_validation_report <- function(filename,sheet_choice) {
            column2 = col2,
            value2 = val2)
   
+  update_progress(detail = "Done.")
   return(list(final_report = final_report,
               missing_demographics = missing_demographics))
-
+  
 }
 
 # write_xlsx(list(final_report = final_report,
