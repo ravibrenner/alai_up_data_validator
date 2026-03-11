@@ -1,4 +1,4 @@
-# Installing and loading packages
+﻿# Installing and loading packages
 if (!require("pacman")) {
   install.packages("pacman")
   library(pacman)
@@ -50,7 +50,7 @@ df <- df|>
     age=as.numeric(age)
   )
 
-# Allow these two columns to be missing entirely, but create them as NA if they are
+# Allow these two columns to be missing entirely, but create them as NA if they
 missing_cols <- c("gender_id", "immigration_status_undoc")
 existing_missing <- missing_cols[!missing_cols %in% names(df)]
 
