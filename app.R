@@ -9,6 +9,7 @@ library(dplyr)
 library(tidyr)
 library(stringr)
 library(lubridate)
+library(DT)
 
 options(shiny.maxRequestSize = 30 * 1024^2)
 
@@ -27,7 +28,20 @@ ui <- page_sidebar(
     )),
     uiOutput("report_download_ui")
   ),
-  "When processing is complete, a download button for the report will appear in the sidebar."
+
+  navset_tab(
+    nav_panel("Home",
+              p("Complete instructions will go here."),
+              p("1. Upload an Excel file containing the data you want to validate."),
+              p("2. Select the sheet within the Excel file that contains the data."),
+              p("3. Enter the name of the site (this will be used in the report filename)."),
+              p("4. Click the 'Process data' button to run the validation checks."),
+              p("When processing is complete, a download button for the report will appear in the sidebar."),
+              p("The tabs here provide a summary of the errors found, as well as detailed information about each error, and a summary of missing demographic data (both found in the excel sheet too).")),
+    nav_panel("Error Summary", DT::dataTableOutput("error_summary_table")),
+    nav_panel("Error Details", DT::dataTableOutput("error_full_table")),
+    nav_panel("Missing Demographics", DT::dataTableOutput("missing_summary"))
+  )
 )
 
 server <- function(input, output, session) {
@@ -76,6 +90,60 @@ server <- function(input, output, session) {
     })
     req(report_data)
     return(report_data)
+  })
+
+  output$error_summary_table <- DT::renderDataTable({
+    req(report())
+
+    report()$final_report |>
+      tibble::as_tibble() |>
+      summarize(.by = description,
+                error_count = n()) |>
+      arrange(desc(error_count)) |>
+      DT::datatable(
+        options = list(
+          pageLength = 15,
+          scrollX = TRUE,
+          searching = FALSE,
+          ordering = TRUE
+        ),
+        rownames = FALSE
+      )
+  })
+
+
+
+  output$error_full_table <- DT::renderDataTable({
+    req(report())
+    report()$final_report |>
+      DT::datatable(
+        filter = "top",
+        options = list(
+          pageLength = 10,
+          lengthMenu = c(10, 25, 50),
+          autoWidth = TRUE,
+          scrollX = TRUE,
+          searching = FALSE,
+          ordering = TRUE
+        ),
+        rownames = FALSE
+      )
+  })
+
+  output$missing_summary <- DT::renderDataTable({
+    req(report())
+
+    report()$missing_demographics |>
+      DT::datatable(
+        options = list(
+          pageLength = 15,
+          scrollX = TRUE,
+          searching = FALSE,
+          ordering = FALSE
+        ),
+        rownames = FALSE,
+        colnames = c("Column", "Missing Count")
+      )
   })
 
   output$report_download <- downloadHandler(
