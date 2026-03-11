@@ -107,7 +107,8 @@ server <- function(input, output, session) {
           searching = FALSE,
           ordering = TRUE
         ),
-        rownames = FALSE
+        rownames = FALSE,
+        colnames = c("Description", "Error Count")
       )
   })
 
@@ -143,7 +144,7 @@ server <- function(input, output, session) {
           ordering = FALSE
         ),
         rownames = FALSE,
-        colnames = c("Column", "Missing Count")
+        colnames = c("Column", "Missing Count", "Total Rows")
       )
   })
 

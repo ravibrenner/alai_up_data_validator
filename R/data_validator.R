@@ -68,10 +68,12 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
            contains("active")) |>
     summarize(across(everything(),
                      .fns = list(n_missing = \(x) sum(is.na(x))),
-                     .names = "{.col}.{.fn}")) |>
-    pivot_longer(cols = everything(),
+                     .names = "{.col}.{.fn}"),
+              total_count = n()) |>
+    pivot_longer(cols = !total_count,
                  names_to = c("column",".value"),
-                 names_pattern = "(.*).(n_missing)")
+                 names_pattern = "(.*).(n_missing)") |>
+    select(column, n_missing, total_count) 
   
   # Initialize the report
   update_progress(detail = "Running initial validations...")
