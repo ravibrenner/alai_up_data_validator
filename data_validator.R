@@ -39,7 +39,7 @@ df <- df|>
                 \(x) case_when(
                   is.POSIXct(x) ~ as.Date(x,format = "%Y-%m-%d"),
                   is.Date(x) ~ as.Date(x,format = "%Y-%m-%d"),
-                  str_detect(x,"/") ~ as.Date(x,format = "%m/%d/%Y"),,
+                  str_detect(x,"/") ~ as.Date(x,format = "%m/%d/%Y"),
                   str_detect(x,"-") ~ as.Date(x,format = "%Y-%m-%d"),
                   .default = as.Date(as.numeric(x),origin = "1899-12-30") #Excel date origin
                 ))) |>
@@ -63,7 +63,7 @@ missing_demographics <- df |>
          housing_status,
          employment_status,
          poverty_level,
-         immigrant_status_undoc,
+         immigration_status_undoc,
          language,
          incarceration_history,
          contains("active")) |>
