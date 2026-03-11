@@ -2,7 +2,7 @@
 if (!require("pacman")) {
   install.packages("pacman")
   library(pacman)
-} 
+}
 p_load(tidyverse,readxl,data.validator,assertr,svDialogs,writexl)
 
 # File selection
@@ -26,11 +26,11 @@ today <- Sys.Date()
 ## Read in data and do some very basic processing
 df <- read_xlsx(filename,
                 sheet = sheet_choice,
-                col_types = "text", 
+                col_types = "text",
                 na=c("NA","UNK","88888","888888","99999","999999","N/A","Unk"))|> #Unknowns
-  arrange(alai_up_uid)|> 
+  arrange(alai_up_uid)|>
   mutate(alai_up_uid=suppressWarnings(as.numeric(alai_up_uid)))|>
-  filter(!is.na(alai_up_uid)) 
+  filter(!is.na(alai_up_uid))
 
 # Data preprocessing
 df <- df|>
@@ -39,31 +39,33 @@ df <- df|>
                 \(x) case_when(
                   is.POSIXct(x) ~ as.Date(x,format = "%Y-%m-%d"),
                   is.Date(x) ~ as.Date(x,format = "%Y-%m-%d"),
-                  str_detect(x,"/") ~ as.Date(x,format = "%m/%d/%Y"),
-                  .default = as.Date(as.numeric(x),origin = "1899-12-30")
+                  str_detect(x,"/") ~ as.Date(x,format = "%m/%d/%Y"),,
+                  str_detect(x,"-") ~ as.Date(x,format = "%Y-%m-%d"),
+                  .default = as.Date(as.numeric(x),origin = "1899-12-30") #Excel date origin
                 ))) |>
   # convert some variables to numeric
   mutate(
     across(contains('cd4')&!contains('date'),as.numeric),
     across(contains('bmi'),as.numeric),
     age=as.numeric(age)
-  ) |>
-  # get correct birth year
-  mutate(
-    birth_year=case_when(
-      birth_year > 2025 ~ 2024 - as.numeric(age),
-      .default = as.numeric(birth_year)
-    )
   )
 
 #incorporate a missing data check for key variables
 missing_demographics <- df |>
   select(vital_status_alive,
+         zip_code,
+         age,
          ethnicity_hispanic,
          contains("race")&!contains("other"),
          sex_birth,
+         contains("risk"),
          insurance_status,
          housing_status,
+         employment_status,
+         poverty_level,
+         immigrant_status_undoc,
+         language,
+         incarceration_history,
          contains("active")) |>
   summarize(across(everything(),
                    .fns = list(n_missing = \(x) sum(is.na(x))),
@@ -74,65 +76,74 @@ missing_demographics <- df |>
 
 
 # Initialize the report
-report <- data_validation_report() # Add validation to the report 
+report <- data_validation_report() # Add validation to the report
 validate(data = df,
          description = "Validation Test") |>
   validate_if(is_uniq(alai_up_uid), description = "ID is unique") |>
   validate_if(!is.na(alai_up_uid) & alai_up_uid != "", description = "ID is not empty") |>
-  validate_cols(predicate = in_set(c("0","1")), 
+  validate_cols(predicate = in_set(c("0","1")),
                 vital_status_alive,
                 description = "invalid value for vital_status_alive, should be 0 or 1") |>
-  validate_cols(predicate = in_set(c("0","1")), 
-                ethnicity_hispanic, 
+  validate_cols(predicate = in_set(c("0","1")),
+                ethnicity_hispanic,
                 description = "invalid value for ethnicity_hispanic, should be 0 or 1") |>
-  validate_cols(predicate = in_set(c("0","1")), 
+  validate_cols(predicate = in_set(c("0","1")),
                 contains('race')&!contains('specify')&!contains("Changes"),
                 description = "invalid value for race variable, should be 0 or 1") |>
   validate_cols(predicate = in_set(c("1","2","3","4","5")),
                 any_of("gender_id"),
                 description = "gender_id") |>
-  validate_cols(predicate = in_set(c("1","2","3")), 
-                sex_birth, 
+  validate_cols(predicate = in_set(c("1","2","3")),
+                sex_birth,
                 description = "invalid value for sex_birth, should be 1, 2, or 3") |>
-  validate_cols(predicate = in_set(c("0","1")), 
-                contains('active'), 
+  validate_cols(predicate = in_set(c("0","1")),
+                contains('active'),
                 description = "invalid value for active year, should be 0 or 1") |>
-  validate_cols(predicate = in_set(c("0","1")), 
+  validate_cols(predicate = in_set(c("0","1")),
                 contains('risk'),
                 description = "invalid value for risk factor, should be 0 or 1") |>
-  validate_cols(predicate = in_set(c("1","2","3","4","5","6","7","8")), 
-                insurance_status, 
+  validate_cols(predicate = in_set(c("1","2","3","4","5","6","7","8")),
+                insurance_status,
                 description = "invalid value for insurance_status, should be 1, 2, 3, 4, 5, 6, 7, or  8") |>
-  validate_cols(predicate = in_set(c("1","2","3")), 
-                housing_status, 
+  validate_cols(predicate = in_set(c("1","2","3")),
+                housing_status,
                 description = "invalid value for housing_status, should be 1, 2, or 3") |>
-  validate_cols(predicate = in_set(c("1","2","3","4","5","6")), 
-                contains('vl')&contains('result'), 
+  validate_cols(predicate = in_set(c("1","2","3")),
+                employment_status,
+                description = "invalid value for mployment_status, should be 1, 2, or 3") |>
+  validate_cols(predicate = in_set(c("1","2","3","4")),
+                poverty_level,
+                description = "invalid value for poverty_level, should be 1, 2, 3, or 4") |>
+ validate_cols(predicate = in_set(c("0","1")),
+               immigration_status_undoc,
+               description = "invalid value for immigration_status_undoc, should be 0 or 1") |>
+  validate_cols(predicate = in_set(c("1","2","3","4","5","6","7","8","20")),
+                language,
+                description = "invalid value for language, should be 1, 2, 3, 4, 5, 6, 7, 8, or 20") |>
+  validate_cols(predicate = in_set(c("0","1","2","3")),
+                incarceration_history,
+                description = "invalid value for incarceration_history, should be 0, 1, 2, or 3") |>
+  validate_cols(predicate = in_set(c("1","2","3","4","5","6")),
+                contains('vl')&contains('result'),
                 description = "invalid valud for VL result, should be 1, 2, 3, 4, 5, 6") |>
-  validate_cols(predicate = in_set(c("0","1")), 
-                contains("ever"), 
+  validate_cols(predicate = in_set(c("0","1")),
+                contains("ever"),
                 description = "invalid value for ever screened or counseled, should be 0 or 1") |>
-  validate_cols(predicate = in_set(c("1","2","3")), 
-                contains("counsel")&contains("outcome"), 
+  validate_cols(predicate = in_set(c("1","2","3")),
+                contains("counsel")&contains("outcome"),
                 description = "invalid value for counsel outcome, should be 1, 2, or 3") |>
-  validate_cols(predicate = in_set(c("1","2","3","4","5","6","20")), 
-                contains("disinterest")&!contains("oth"), 
-                description = "invalid disinterest reason value, should be 1, 2, 3, 4, 5, 6, or 20") |>
-  validate_cols(predicate = in_set(c("0","1")), 
-                contains("screen")&contains("outcome"), 
+  validate_cols(predicate = in_set(c("0","1")),
+                contains("screen")&contains("outcome"),
                 description = "invalid value for screening outcome, should be 0 or 1") |>
-  validate_cols(predicate = in_set(c("0","1")), 
+  validate_cols(predicate = in_set(c("0","1")),
                 contains('rx')&!contains('date'),
                 description = "invalid value for rx, should be 0 or 1") |>
-  validate_cols(predicate = in_set(c("1","2","3","4","5","6")), 
+  validate_cols(predicate = in_set(c("1","2","3","4","5","6")),
                 contains('_dose'),
                 description = "invalid value for Injection [x] dose, should be 1, 2, 3, 4, 5, or 6") |>
-  validate_cols(predicate = in_set(c("0","1")), 
+  validate_cols(predicate = in_set(c("0","1")),
                 icab_rpv_discontinued,
                 description = "invalid value for icab_rpv_discontinued, should be 0 or 1") |>
-  validate_cols(predicate = in_set(c("1","2","3","4","5","6","7","8","9","10","20")), 
-                icab_rpv_discontinued_reason, 
-                description = "invalid value for icab_rpv_discontinued_reason, should be 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, or 20") |>
   add_results(report = report)
 
 
@@ -140,29 +151,70 @@ validate(data = df,
 not_elig_df <- df |>
   select(alai_up_uid, contains("not_elig")&contains("reason")&!contains("oth")) |>
   mutate(across(contains("not_elig")&contains("reason")&!contains("oth"),
-                \(x) str_split(x,","))) |> 
-  unnest_wider(col = !alai_up_uid,names_sep = "_") |> 
+                \(x) str_split(x,","))) |>
+  unnest_wider(col = !alai_up_uid,names_sep = "_") |>
   mutate(across(!alai_up_uid,
                 \(x) case_when(
                   str_trim(x) %in% c("1","2","3","4","5","6","7","8","9","10","20") ~ "OK",
                   is.na(x) ~ "OK",
                   .default = str_extract(cur_column(),"(?<=_)[\\d+]+(?=_)")
-                ))) 
+                )))
 
 validate(data = not_elig_df,
          description = "Not eligible reasons check") |>
-  validate_cols(predicate = in_set(c("OK")), 
-                !alai_up_uid, 
+  validate_cols(predicate = in_set(c("OK")),
+                !alai_up_uid,
                 description = "invalid not eligible reason, should be 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, or 20") |>
+  add_results(report = report)
+
+# Disinterest reasons
+disinterest_df <- df |>
+  select(alai_up_uid, contains("disinterest")&contains("reason")&!contains("oth")) |>
+  mutate(across(contains("disinterest")&contains("reason")&!contains("oth"),
+                \(x) str_split(x,","))) |>
+  unnest_wider(col = !alai_up_uid, names_sep = "_") |>
+  mutate(across(!alai_up_uid,
+                \(x) case_when(
+                  str_trim(x) %in% c("1","2","3","4","5","6","20") ~ "OK",
+                  is.na(x) ~ "OK",
+                  .default = str_extract(cur_column(),"(?<=_)[\\d+]+(?=_)")
+                )))
+
+validate(data = disinterest_df,
+         description = "Disinterest reasons check") |>
+  validate_cols(predicate = in_set(c("OK")),
+                !alai_up_uid,
+                description = "invalid disinterest reason, should be 1, 2, 3, 4, 5, 6, or 20") |>
+  add_results(report = report)
+
+
+# Discontinued reasons
+discontinued_df <- df |>
+  select(alai_up_uid, contains("discontinued")&contains("reason")&!contains("oth")) |>
+  mutate(across(contains("discontinued")&contains("reason")&!contains("oth"),
+                \(x) str_split(x,","))) |>
+  unnest_wider(col = !alai_up_uid, names_sep = "_") |>
+  mutate(across(!alai_up_uid,
+                \(x) case_when(
+                  str_trim(x) %in% c("1","2","3","4","5","6","7","8","9","10","20") ~ "OK",
+                  is.na(x) ~ "OK",
+                  .default = str_extract(cur_column(),"(?<=_)[\\d+]+(?=_)")
+                )))
+
+validate(data = discontinued_df,
+         description = "Discontinued reasons check") |>
+  validate_cols(predicate = in_set(c("OK")),
+                !alai_up_uid,
+                description = "invalid discontinued reason, should be 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, or 20") |>
   add_results(report = report)
 
 # Viral load data
 vl_long <- df|>
-  select(alai_up_uid,contains("hiv_vl")&!contains("dx")&!contains("pre_icab"))|> 
+  select(alai_up_uid,contains("hiv_vl")&!contains("dx")&!contains("pre_icab"))|>
   pivot_longer(cols=contains("hiv_vl"),
                names_to=c("index",".value"),
                names_pattern = "hiv_vl_(.*)_(date|result)",
-  )|> 
+  )|>
   mutate(date=as.Date(date),
          index = as.numeric(index))|>
   group_by(alai_up_uid)|>
@@ -214,11 +266,11 @@ validate(data = vl_summary, description = "VL issues") |>
 # Injection data
 shot_long <- df|>
   select(alai_up_uid,contains("icab_rpv_shot") & (contains("date") | contains("dose")),
-         contains("pre_icab"))|> 
+         contains("pre_icab"))|>
   pivot_longer(cols=contains("icab_rpv_shot")& (contains("date") | contains("dose")),
                names_to=c("index",".value"),
                names_pattern = "icab_rpv_shot(\\d+)_(date|dose)",
-  )|> 
+  )|>
   mutate(index = as.numeric(index),
          date=as.Date(date))|>
   group_by(alai_up_uid)|>
@@ -226,7 +278,7 @@ shot_long <- df|>
   mutate(shot_sequenced=case_when(
     date>lag(date)~1,
     date<=lag(date)~0,
-  ))|> 
+  ))|>
   mutate(
     ever_on_cab = if_else(any(!is.na(date)),1,0),
     shot_violation=case_when(
@@ -335,15 +387,15 @@ icab_events_long <- df|>
          icab_rpv_discontinued_date,icab_rpv_discontinued)|>
   mutate(across(everything()&!alai_up_uid,as.character))|>
   pivot_longer(
-    cols = (contains("counsel")|contains("screen"))&!contains("ever")&!contains("reason"), 
+    cols = (contains("counsel")|contains("screen"))&!contains("ever")&!contains("reason"),
     names_to = c("event", "index",".value"),
     names_pattern = "icab_rpv_(.+)_(\\d+)_(outcome|date)",
-    values_drop_na = FALSE) 
+    values_drop_na = FALSE)
 
 # get just the events before the first injection
 icab_events_before_shot1 <- icab_events_long|>
   filter( is.na(icab_rpv_shot1_date) |date<=icab_rpv_shot1_date |is.na(date)
-  )|> 
+  )|>
   #no counseling/screening after initiation is kept
   #but those events can still happen between the time of prescription and initiation
   mutate(
@@ -379,7 +431,7 @@ icab_events_before_shot1 <- icab_events_long|>
 icab_events <- icab_events_before_shot1|>
   group_by(alai_up_uid)|>
   arrange(date)|>
-  summarize( 
+  summarize(
     ever_counselled_VALID=case_when(
       all(icab_rpv_counsel_ever==1)&any(event=="counsel" & (!is.na(date) | !is.na(outcome)))~1,
       all(icab_rpv_counsel_ever==0)&!any(event=="counsel" & !is.na(date) &!is.na(outcome))~1,
@@ -420,16 +472,16 @@ icab_events <- icab_events_before_shot1|>
       .default = unique(alai_up_uid)
     ),
     counsel_extreme_date = case_when(
-      any(event == "counsel" & date > today & !is.na(date)) ~  
+      any(event == "counsel" & date > today & !is.na(date)) ~
         paste(paste(index[event == "counsel" & date > today & !is.na(date)],collapse = ", ")),
-      any(event == "counsel" & date < as.Date("2021-01-22") & !is.na(date)) ~ 
+      any(event == "counsel" & date < as.Date("2021-01-22") & !is.na(date)) ~
         paste(paste(index[event == "counsel" & date < as.Date("2021-01-22") & !is.na(date)],collapse = ", ")),
       .default = "0"
     ),
     screen_extreme_date = case_when(
-      any(event == "screen" & date > today & !is.na(date)) ~  
+      any(event == "screen" & date > today & !is.na(date)) ~
         paste(paste(index[event == "screen" & date > today & !is.na(date)],collapse = ", ")),
-      any(event == "screen" & date < as.Date("2021-01-22") & !is.na(date)) ~ 
+      any(event == "screen" & date < as.Date("2021-01-22") & !is.na(date)) ~
         paste(paste(index[event == "screen" & date < as.Date("2021-01-22") & !is.na(date)],collapse = ", ")),
       .default = "0"
     ),
@@ -443,9 +495,9 @@ icab_events <- icab_events_before_shot1|>
           any(icab_rpv_discontinued_date < as.Date("2021-01-22") & !is.na(icab_rpv_discontinued_date)) ~ unique(alai_up_uid),
       .default = 0
     )
-  ) 
+  )
 
-##summarization level   
+##summarization level
 icab_2 <- df|>
   mutate(
     discontinue_valid=case_when(
@@ -519,15 +571,17 @@ validate(data = icab_events_whole, description = "iCAB logic check") |>
 # create the final report, edit excel instructions
 final_report <- get_results(report, unnest = T) |>
   filter(type == "error") |>
-  left_join(df |> 
+  left_join(df |>
               mutate(index = row_number()) |>
-              select(index,alai_up_uid)) |> 
+              select(index,alai_up_uid)) |>
   mutate(value = str_split(value,", ")) |>
-  unnest(value) |> 
+  unnest(value) |>
   mutate(column_new = case_when(
     table_name == "df" & description == "ID is unique" ~ "alai_up_uid",
     table_name == "df"  ~  column,
     table_name == "not_elig_df" ~ str_c("icab_rpv_not_elig_",value,"_reason"),
+    table_name == "disinterest_df" ~ str_c("icab_rpv_disinterest_reason_",value),
+    table_name == "discontinued_df" ~ "icab_rpv_discontinued_reason",
     table_name == "vl_summary" & column == "any_vl_violation" ~ str_c("hiv_vl_",as.numeric(value)-1,"_date, hiv_vl_",value,"_date"),
     table_name == "vl_summary" & column == "any_missing_vl_result" ~ str_c("hiv_vl_",value,"_result"),
     table_name == "vl_summary" & column == "any_vl_in_future" ~ str_c("hiv_vl_",value,"_date"),
@@ -553,10 +607,10 @@ final_report <- get_results(report, unnest = T) |>
     table_name == "icab_events_whole" & column == "discontinued_extreme_date" ~ "icab_rpv_discontinued_date",
     table_name == "icab_events_whole" & column == "discontinue_valid" ~ "icab_rpv_discontinued",
     table_name == "icab_events_whole" & column == "initiate_after_rx" ~ "icab_rpv_rx_date, icab_rpv_shot1_date"
-  )) |> 
-  select(alai_up_uid,description,column_new) |> 
+  )) |>
+  select(alai_up_uid,description,column_new) |>
   separate(column_new,sep = ", ",
-           into = c("col1","col2")) 
+           into = c("col1","col2"))
 
 final_report$val1 <- NA_character_
 final_report$val2 <- NA_character_
@@ -569,7 +623,7 @@ for (i in 1:nrow(final_report)){
   } else {
     final_report$val2[i] <- NA_character_
   }
-  
+
 }
 
 final_report <- final_report |>
@@ -584,4 +638,3 @@ write_xlsx(list(final_report = final_report,
            path = paste0(dirname(filename), "/data_validation_report_",today,".xlsx"))
 
 print("Done")
-
