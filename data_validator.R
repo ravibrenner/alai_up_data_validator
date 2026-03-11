@@ -1,27 +1,4 @@
-﻿# Installing and loading packages
-if (!require("pacman")) {
-  install.packages("pacman")
-  library(pacman)
-}
-p_load(tidyverse,readxl,data.validator,assertr,svDialogs,writexl)
-
-# File selection
-filename <- dlg_open(title = "Select your Excel file")$res
-
-if (filename == "") {
-  stop("No file selected.")
-}
-
-# sheet selection
-sheet_names <- excel_sheets(filename)
-
-sheet_choice <- dlg_list(sheet_names, title = "Choose a sheet")$res
-
-if (sheet_choice == "") {
-  stop("No sheet selected.")
-}
-
-today <- Sys.Date()
+﻿data_validation_report <- function(filename,sheet_choice) {
 
 ## Read in data and do some very basic processing
 df <- read_xlsx(filename,
@@ -403,38 +380,52 @@ icab_events_long <- df|>
     values_drop_na = FALSE)
 
 # get just the events before the first injection
-icab_events_before_shot1 <- icab_events_long|>
-  filter( is.na(icab_rpv_shot1_date) |date<=icab_rpv_shot1_date |is.na(date)
-  )|>
+icab_events_before_shot1 <- icab_events_long |>
+  filter(
+    is.na(icab_rpv_shot1_date) | date <= icab_rpv_shot1_date | is.na(date)
+  ) |>
   #no counseling/screening after initiation is kept
   #but those events can still happen between the time of prescription and initiation
   mutate(
-    prescribe_after_counsel=case_when(
-      icab_rpv_rx==1 & event=="counsel" & date<=icab_rpv_rx_date &
-        !is.na(date) & !is.na(icab_rpv_rx_date) ~ 1,
-      icab_rpv_rx==1 & event=="counsel" & date>icab_rpv_rx_date &
-        !is.na(date) & !is.na(icab_rpv_rx_date) ~ 0,
-      (icab_rpv_rx==0 | is.na(icab_rpv_rx)) & is.na(icab_rpv_rx_date) ~ 1,
+    prescribe_after_counsel = case_when(
+      icab_rpv_rx == 1 &
+        event == "counsel" &
+        date <= icab_rpv_rx_date &
+        !is.na(date) &
+        !is.na(icab_rpv_rx_date) ~ 1,
+      icab_rpv_rx == 1 &
+        event == "counsel" &
+        date > icab_rpv_rx_date &
+        !is.na(date) &
+        !is.na(icab_rpv_rx_date) ~ 0,
+      (icab_rpv_rx == 0 | is.na(icab_rpv_rx)) & is.na(icab_rpv_rx_date) ~ 1,
       .default = NA
     ),
-    prescribe_after_screen=case_when(
-      icab_rpv_rx==1 & event=="screen" & date<=icab_rpv_rx_date &
-        !is.na(date) & !is.na(icab_rpv_rx_date) ~ 1,
-      icab_rpv_rx==1 & event=="screen" & date>icab_rpv_rx_date &
-        !is.na(date) & !is.na(icab_rpv_rx_date) ~ 0,
-      (icab_rpv_rx==0 | is.na(icab_rpv_rx)) & is.na(icab_rpv_rx_date) ~ 1,
+    prescribe_after_screen = case_when(
+      icab_rpv_rx == 1 &
+        event == "screen" &
+        date <= icab_rpv_rx_date &
+        !is.na(date) &
+        !is.na(icab_rpv_rx_date) ~ 1,
+      icab_rpv_rx == 1 &
+        event == "screen" &
+        date > icab_rpv_rx_date &
+        !is.na(date) &
+        !is.na(icab_rpv_rx_date) ~ 0,
+      (icab_rpv_rx == 0 | is.na(icab_rpv_rx)) & is.na(icab_rpv_rx_date) ~ 1,
       .default = NA
     ),
-    rx_interested=case_when(
-      icab_rpv_rx==1 & event=="counsel" & outcome==3 ~1,
-      icab_rpv_rx==1 & event=="counsel" & outcome!=3 ~0,
+    rx_interested = case_when(
+      icab_rpv_rx == 1 & event == "counsel" & outcome == 3 ~ 1,
+      icab_rpv_rx == 1 & event == "counsel" & outcome != 3 ~ 0,
       .default = NA
     ),
-    rx_eligible=case_when(
-      icab_rpv_rx==1 & event=="screen" & outcome==1 ~1,
-      icab_rpv_rx==1 & event=="screen" & outcome!=1 ~0,
+    rx_eligible = case_when(
+      icab_rpv_rx == 1 & event == "screen" & outcome == 1 ~ 1,
+      icab_rpv_rx == 1 & event == "screen" & outcome != 1 ~ 0,
       .default = NA
-    ))
+    )
+  )
 
 
 #group by alai_up_uid AND arrange for first and last events before shot1
@@ -643,8 +634,12 @@ final_report <- final_report |>
          column2 = col2,
          value2 = val2)
 
-write_xlsx(list(final_report = final_report,
-                missing_demographics = missing_demographics),
-           path = paste0(dirname(filename), "/data_validation_report_",today,".xlsx"))
+  return(list(final_report = final_report,
+              missing_demographics = missing_demographics))
+}
 
-print("Done")
+# write_xlsx(list(final_report = final_report,
+#                 missing_demographics = missing_demographics),
+#            path = paste0(dirname(filename), "/data_validation_report_",today,".xlsx"))
+
+# print("Done")
