@@ -1,5 +1,5 @@
-﻿data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
-
+data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
+  
   today <- Sys.Date()
   # Helper function to update progress if the updater is provided
   update_progress <- function(detail = NULL) {
@@ -7,7 +7,7 @@
       progress_updater(detail = detail)
     }
   }
-
+  
   ## Read in data and do some very basic processing
   update_progress(detail = "Reading data...")
   df <- read_xlsx(filename,
@@ -17,8 +17,8 @@
     arrange(alai_up_uid)|>
     mutate(alai_up_uid=suppressWarnings(as.numeric(alai_up_uid)))|>
     filter(!is.na(alai_up_uid))
-
-
+  
+  
   # Data preprocessing
   update_progress(detail = "Preprocessing data...")
   df <- df|>
@@ -37,18 +37,18 @@
       across(contains('bmi'),as.numeric),
       age=as.numeric(age)
     )
-
+  
   # Allow these two columns to be missing entirely, but create them as NA if they
   update_progress(detail = "Handling missing columns...")
   missing_cols <- c("gender_id", "immigration_status_undoc")
   existing_missing <- missing_cols[!missing_cols %in% names(df)]
-
+  
   if (length(existing_missing) > 0) {
     for (col in existing_missing) {
       df[[col]] <- NA_character_
     }
   }
-
+  
   #incorporate a missing data check for key variables
   update_progress(detail = "Checking missing demographics...")
   missing_demographics <- df |>
@@ -73,7 +73,7 @@
     pivot_longer(cols = everything(),
                  names_to = c("column",".value"),
                  names_pattern = "(.*).(n_missing)")
-
+  
   # Initialize the report
   update_progress(detail = "Running initial validations...")
   report <- data.validator::data_validation_report() # Add validation to the report
@@ -145,8 +145,8 @@
                   icab_rpv_discontinued,
                   description = "invalid value for icab_rpv_discontinued, should be 0 or 1") |>
     add_results(report = report)
-
-
+  
+  
   #not eligible reasons
   update_progress(detail = "Checking 'not eligible' reasons...")
   not_elig_df <- df |>
@@ -160,14 +160,14 @@
                     is.na(x) ~ "OK",
                     .default = str_extract(cur_column(),"(?<=_)[\\d+]+(?=_)")
                   )))
-
+  
   validate(data = not_elig_df,
            description = "Not eligible reasons check") |>
     validate_cols(predicate = in_set(c("OK")),
                   !alai_up_uid,
                   description = "invalid not eligible reason, should be 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, or 20") |>
     add_results(report = report)
-
+  
   # Disinterest reasons
   update_progress(detail = "Checking 'disinterest' reasons...")
   disinterest_df <- df |>
@@ -181,15 +181,15 @@
                     is.na(x) ~ "OK",
                     .default = str_extract(cur_column(),"(?<=_)[\\d+]+(?=_)")
                   )))
-
+  
   validate(data = disinterest_df,
            description = "Disinterest reasons check") |>
     validate_cols(predicate = in_set(c("OK")),
                   !alai_up_uid,
                   description = "invalid disinterest reason, should be 1, 2, 3, 4, 5, 6, or 20") |>
     add_results(report = report)
-
-
+  
+  
   # Discontinued reasons
   update_progress(detail = "Checking 'discontinued' reasons...")
   discontinued_df <- df |>
@@ -203,14 +203,14 @@
                     is.na(x) ~ "OK",
                     .default = str_extract(cur_column(),"(?<=_)[\\d+]+(?=_)")
                   )))
-
+  
   validate(data = discontinued_df,
            description = "Discontinued reasons check") |>
     validate_cols(predicate = in_set(c("OK")),
                   !alai_up_uid,
                   description = "invalid discontinued reason, should be 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, or 20") |>
     add_results(report = report)
-
+  
   # Viral load data
   update_progress(detail = "Processing viral load data...")
   vl_long <- df|>
@@ -241,7 +241,7 @@
         .default = "OK"
       )
     )
-
+  
   vl_summary <- vl_long |>
     group_by(alai_up_uid) |>
     summarize(
@@ -254,7 +254,7 @@
       any_vl_in_future = if_else(any(date_in_future != "OK"),
                                  paste(paste(index[date_in_future != "OK"],collapse = ", ")),
                                  "0"))
-
+  
   update_progress(detail = "Validating viral load data...")
   validate(data = vl_summary, description = "VL issues") |>
     validate_cols(predicate = in_set(c("0")),
@@ -267,7 +267,7 @@
                   any_vl_in_future,
                   description = "Viral load date is in the future") |>
     add_results(report = report)
-
+  
   # Injection data
   update_progress(detail = "Processing injection data...")
   shot_long <- df|>
@@ -326,8 +326,8 @@
       ),
       alai_up_uid=as.numeric(alai_up_uid)
     )
-
-
+  
+  
   shot_summary <- shot_long |>
     group_by(alai_up_uid) |>
     summarize(
@@ -355,7 +355,7 @@
                                paste(paste(index[early_date != "OK"],collapse = ", ")),
                                "0")
     )
-
+  
   update_progress(detail = "Validating injection data...")
   validate(data = shot_summary, description = "Shot issues") |>
     validate_cols(predicate = in_set(c("0")),
@@ -383,9 +383,9 @@
                   any_early_date,
                   description = "Warning: iCAB/RPV shot date is before January 22, 2021 (before iCAB/RPV was FDA approved)  Check to ensure that the shot date is correct.") |>
     add_results(report = report)
-
-
-
+  
+  
+  
   ## iCAB-related events
   update_progress(detail = "Processing iCAB-related events...")
   icab_events_long <- df|>
@@ -399,7 +399,7 @@
       names_to = c("event", "index",".value"),
       names_pattern = "icab_rpv_(.+)_(\\d+)_(outcome|date)",
       values_drop_na = FALSE)
-
+  
   # get just the events before the first injection
   icab_events_before_shot1 <- icab_events_long |>
     filter(
@@ -447,8 +447,8 @@
         .default = NA
       )
     )
-
-
+  
+  
   #group by alai_up_uid AND arrange for first and last events before shot1
   icab_events <- icab_events_before_shot1|>
     group_by(alai_up_uid)|>
@@ -518,7 +518,7 @@
         .default = 0
       )
     )
-
+  
   ##summarization level
   icab_2 <- df|>
     mutate(
@@ -540,10 +540,10 @@
       ),
     )|>
     select(alai_up_uid,discontinue_valid,initiate_after_rx)
-
+  
   icab_events_whole=merge(icab_events,icab_2,by="alai_up_uid") |>
     distinct()
-
+  
   update_progress(detail = "Validating iCAB logic...")
   validate(data = icab_events_whole, description = "iCAB logic check") |>
     validate_cols(predicate = in_set(c(1)),
@@ -589,7 +589,7 @@
                   discontinued_extreme_date,
                   description = "Warning: iCAB/RPV discontinuation date is before January 22, 2021 (before iCAB/RPV was FDA approved) or after today’s date. Check to ensure that the discontinuation date is correct.") |>
     add_results(report = report)
-
+  
   # create the final report, edit excel instructions
   update_progress(detail = "Generating final report...")
   final_report <- get_results(report, unnest = T) |>
@@ -634,10 +634,10 @@
     select(alai_up_uid,description,column_new) |>
     separate(column_new,sep = ", ",
              into = c("col1","col2"))
-
+  
   final_report$val1 <- NA_character_
   final_report$val2 <- NA_character_
-
+  
   update_progress(detail = "Fetching values for report...")
   for (i in 1:nrow(final_report)){
     final_report$val1[i] = as.character(pull(df[df$alai_up_uid == final_report$alai_up_uid[i],
@@ -648,18 +648,18 @@
     } else {
       final_report$val2[i] <- NA_character_
     }
-
+    
   }
-
+  
   final_report <- final_report |>
     select(alai_up_uid, description, col1, val1, col2, val2) |>
     rename(column1 = col1,
            value1 = val1,
            column2 = col2,
            value2 = val2)
-
+  
   update_progress(detail = "Done.")
   return(list(final_report = final_report,
               missing_demographics = missing_demographics))
-
+  
 }
