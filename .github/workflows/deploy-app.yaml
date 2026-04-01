@@ -32,13 +32,13 @@ jobs:
         shell: Rscript {0}
         run: |
           pak::pak(
-            unique(renv::dependencies("app")$Package)
+            unique(renv::dependencies(".")$Package)
           )
 
       - name: Build site
         shell: Rscript {0}
         run: |
-          shinylive::export("app", "docs")
+          shinylive::export(".", "docs")
 
       - name: Upload site artifact
         if: github.ref == 'refs/heads/main'
