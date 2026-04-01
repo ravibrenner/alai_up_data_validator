@@ -43,7 +43,7 @@ ui <- page_sidebar(
               p("When processing is complete, a download button for the report will appear in the sidebar."),
               p("The tabs here provide a summary of the errors found, as well as detailed information about each error, and a summary of missing demographic data (both found in the excel sheet too).")),
     nav_panel("Error Summary", DT::dataTableOutput("error_summary_table")),
-    nav_panel("Error Details", DT::dataTableOutput("error_full_table")),
+    nav_panel("Final Report", DT::dataTableOutput("error_full_table")),
     nav_panel("Missing Demographics", DT::dataTableOutput("missing_summary"))
   )
 )
