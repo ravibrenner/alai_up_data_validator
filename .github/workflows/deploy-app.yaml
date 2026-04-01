@@ -21,12 +21,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: rstudio/shiny-workflows/setup-r-package@v1
+      - name: Setup R
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Setup R dependencies
+      - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           packages: |
-            renv
+            any::renv
             posit-dev/r-shinylive
-            sessioninfo
+            any::sessioninfo
 
       - name: Find package dependencies
         shell: Rscript {0}
