@@ -14,6 +14,8 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
                   sheet = sheet_choice,
                   col_types = "text",
                   na=c("NA","UNK","88888","888888","99999","999999","N/A","Unk"))|> #Unknowns
+    # for historical reasons, uid was named alai_up_uid. so preserving that here
+    rename(alai_up_uid = any_of(c("uid", "alai_up_uid"))) |>
     arrange(alai_up_uid)|>
     mutate(alai_up_uid=suppressWarnings(as.numeric(alai_up_uid)))|>
     filter(!is.na(alai_up_uid))
@@ -140,8 +142,8 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
                   contains('rx')&!contains('date'),
                   description = "invalid value for rx, should be 0 or 1") |>
     validate_cols(predicate = in_set(c("1","2","3","4","5","6")),
-                  contains('_dose'),
-                  description = "invalid value for Injection [x] dose, should be 1, 2, 3, 4, 5, or 6") |>
+                  contains('_interval'),
+                  description = "invalid value for Injection [x] interval, should be 1, 2, 3, 4, 5, or 6") |>
     validate_cols(predicate = in_set(c("0","1")),
                   icab_rpv_discontinued,
                   description = "invalid value for icab_rpv_discontinued, should be 0 or 1") |>
@@ -272,11 +274,11 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
   # Injection data
   update_progress(detail = "Processing injection data...")
   shot_long <- df|>
-    select(alai_up_uid,contains("icab_rpv_shot") & (contains("date") | contains("dose")),
+    select(alai_up_uid,contains("icab_rpv_shot"),
            contains("pre_icab"))|>
-    pivot_longer(cols=contains("icab_rpv_shot")& (contains("date") | contains("dose")),
+    pivot_longer(cols=contains("icab_rpv_shot"),
                  names_to=c("index",".value"),
-                 names_pattern = "icab_rpv_shot(\\d+)_(date|dose)",
+                 names_pattern = "icab_rpv_shot(\\d+)_(date|interval|late_exception)",
     )|>
     mutate(index = as.numeric(index),
            date=as.Date(date))|>
@@ -292,30 +294,28 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
         ever_on_cab == 1 & shot_sequenced==0~paste(alai_up_uid,':',lag(date),date,lead(date)),
         .default='OK'
       ),
-      missing_dose = case_when(
-        ever_on_cab == 1 & is.na(dose)& !is.na(date) ~ paste(alai_up_uid,": shot",index,",",date),
+      missing_interval = case_when(
+        ever_on_cab == 1 & is.na(interval)& !is.na(date) ~ paste(alai_up_uid,": shot",index,",",date),
         .default = "OK"
       ),
       missing_first_dose = case_when(
-        ever_on_cab == 1 & any(index == 1 & is.na(date) & is.na(dose)) ~ paste(alai_up_uid),
+        ever_on_cab == 1 & any(index == 1 & is.na(date) & is.na(interval)) ~ paste(alai_up_uid),
         .default = "OK"
       ),
       missing_pre_icab_vl = case_when(
         ever_on_cab == 1 & any(is.na(hiv_vl_pre_icab_result)) ~ paste(alai_up_uid),
         .default = "OK"
       ),
-      interval = as.numeric(difftime(date,lag(date),units = "days")),
-      late = case_when(dose %in% c(4,5,6) ~ FALSE,
-                       lag(index) == 1 & lag(dose) != 6 ~ interval > 31+7,
-                       lag(dose) %in% c(1,3,4,5) ~ interval > 31+7,
-                       lag(dose) %in% c(2,6) ~ interval > 62+7,
-                       is.na(lag(dose)) ~ interval > 62 + 7,
+      time_between_inj = as.numeric(difftime(date,lag(date),units = "days")),
+      late = case_when(late_exception == 1 ~ FALSE,
+                       lag(interval) == 1 ~ time_between_inj > 31+7,
+                       lag(interval) == 2 ~ time_between_inj > 62+7,
+                       is.na(lag(interval)) ~ time_between_inj > 62 + 7,
                        .default = FALSE),
-      early = case_when(dose %in% c(4,5,6) ~ FALSE,
-                        lag(index) == 1 & lag(dose) != 6 ~ interval < 31-7,
-                        lag(dose) %in% c(1,3,4,5) ~ interval < 31-7,
-                        lag(dose) %in% c(2,6) ~ interval < 62-7,
-                        is.na(lag(dose)) ~ interval < 31 - 7,
+      early = case_when(late_exception == 1 ~ FALSE,
+                        lag(interval) == 1 ~ time_between_inj < 28-7,
+                        lag(interval) == 2 ~ time_between_inj < 56-7,
+                        is.na(lag(interval)) ~ time_between_inj < 28 - 7,
                         .default = FALSE),
       date_in_future = case_when(
         date > today ~ paste(alai_up_uid,": shot",index,",",date),
@@ -335,8 +335,8 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
       any_shot_violation = if_else(any(shot_violation != "OK"),
                                    paste(paste(index[shot_violation != "OK"],collapse = ", ")),
                                    "0"),
-      any_missing_dose = if_else(any(missing_dose != "OK"),
-                                 paste(paste(index[missing_dose != "OK"],collapse = ", ")),
+      any_missing_interval = if_else(any(missing_interval != "OK"),
+                                 paste(paste(index[missing_interval != "OK"],collapse = ", ")),
                                  "0"),
       any_missing_first_dose = if_else(any(missing_first_dose != "OK"),
                                        "1","0"),
@@ -361,13 +361,13 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
   validate(data = shot_summary, description = "Shot issues") |>
     validate_cols(predicate = in_set(c("0")),
                   any_shot_violation,
-                  description = "iCAB/RPV shot dates are not in sequential order. Please re-order shot dates and related data (dose, needle length, BMI) from oldest to newest") |>
+                  description = "iCAB/RPV shot dates are not in sequential order. Please re-order shot dates and related data (interval, late_exception) from oldest to newest") |>
     validate_cols(predicate = in_set(c("0")),
-                  any_missing_dose,
-                  description = "iCAB/RPV dose is missing. Please enter missing iCAB/RPV dose. If no shot was delivered, then delete shot date.") |>
+                  any_missing_interval,
+                  description = "iCAB/RPV interval is missing. Please enter missing iCAB/RPV interval If no shot was delivered, then delete shot date.") |>
     validate_cols(predicate = in_set(c("0")),
                   any_missing_first_dose,
-                  description = "Patient has information for later iCAB/RPV shot doses (e.g., shot2 or shot3), but is missing the date of first dose. Please enter date for first dose or shift shot information to remove this gap. If first shot was delivered at a different clinic, please use the special response options for dose to indicate this. Don’t leave shot1 information blank.") |>
+                  description = "Patient has information for later iCAB/RPV shot doses (e.g., shot2 or shot3), but is missing the date of first dose. Please enter date for first dose or shift shot information to remove this gap. If first shot was delivered at a different clinic, please use late_exception to indicate this. Don’t leave shot1 information blank.") |>
     validate_cols(predicate = in_set(c("0")),
                   missing_pre_icab_vl,
                   description = "Pre-iCAB/RPV VL is missing. Please enter the client's most recent viral load test on or before first iCAB/RPV injection.") |>
@@ -392,7 +392,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
   icab_events_long <- df|>
     filter(!is.na(alai_up_uid))|>
     select(alai_up_uid,contains("counsel"),contains("screen"),contains("rx"),
-           icab_rpv_shot1_date,icab_rpv_shot1_dose,
+           icab_rpv_shot1_date,icab_rpv_shot1_interval,
            icab_rpv_discontinued_date,icab_rpv_discontinued)|>
     mutate(across(everything()&!alai_up_uid,as.character))|>
     pivot_longer(
@@ -610,7 +610,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
       table_name == "vl_summary" & column == "any_missing_vl_result" ~ str_c("hiv_vl_",value,"_result"),
       table_name == "vl_summary" & column == "any_vl_in_future" ~ str_c("hiv_vl_",value,"_date"),
       table_name == "shot_summary" & column == "any_shot_violation" ~ str_c("icab_rpv_shot",as.numeric(value)-1,"_date, icab_rpv_shot",value,"_date"),
-      table_name == "shot_summary" & column == "any_missing_dose" ~ str_c("icab_rpv_shot",value,"_dose"),
+      table_name == "shot_summary" & column == "any_missing_interval" ~ str_c("icab_rpv_shot",value,"_interval"),
       table_name == "shot_summary" & column == "any_missing_first_dose" ~ str_c("icab_rpv_shot",value,"_date"),
       table_name == "shot_summary" & column == "missing_pre_icab_vl" ~ "hiv_vl_pre_icab_result",
       table_name == "shot_summary" & column == "any_late_dose" ~ str_c("icab_rpv_shot",as.numeric(value)-1,"_date, icab_rpv_shot",value,"_date"),
@@ -638,7 +638,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
       table_name == "vl_summary" & column == "any_missing_vl_result" ~ "Viral load result missing",
       table_name == "vl_summary" & column == "any_vl_in_future" ~ "Viral load date is in the future",
       table_name == "shot_summary" & column == "any_shot_violation" ~ "iCAB/RPV shot dates are not in sequential order",
-      table_name == "shot_summary" & column == "any_missing_dose" ~ "iCAB/RPV dose value is missing",
+      table_name == "shot_summary" & column == "any_missing_interval" ~ "iCAB/RPV interval value is missing",
       table_name == "shot_summary" & column == "any_missing_first_dose" ~ "Patient has information for later iCAB/RPV shot doses (e.g., shot2 or shot3), but is missing the date of first dose",
       table_name == "shot_summary" & column == "missing_pre_icab_vl" ~ "Pre-iCAB/RPV VL is missing",
       table_name == "shot_summary" & column == "any_late_dose" ~ "iCAB/RPV dose is late",
