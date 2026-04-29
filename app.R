@@ -12,7 +12,6 @@ library(lubridate)
 library(DT)
 
 options(shiny.maxRequestSize = 30 * 1024^2)
-
 source("R/data_validator.R")
 
 ui <- page_sidebar(
@@ -128,8 +127,6 @@ server <- function(input, output, session) {
         colnames = c("Description", "Error Count")
       )
   })
-
-
 
   output$error_full_table <- DT::renderDataTable({
     req(report())
