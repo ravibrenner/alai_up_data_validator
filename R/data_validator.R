@@ -683,7 +683,8 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
   
   final_report <- final_report |>
     select(alai_up_uid, description, col1, val1, col2, val2,short_message) |>
-    rename(column1 = col1,
+    rename(uid = alai_up_uid,
+           column1 = col1,
            value1 = val1,
            column2 = col2,
            value2 = val2) |>
