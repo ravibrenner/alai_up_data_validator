@@ -364,19 +364,19 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
                   description = "iCAB/RPV shot dates are not in sequential order. Please re-order shot dates and related data (interval, late_exception) from oldest to newest") |>
     validate_cols(predicate = in_set(c("0")),
                   any_missing_interval,
-                  description = "iCAB/RPV interval is missing. Please enter missing iCAB/RPV interval If no shot was delivered, then delete shot date.") |>
+                  description = "iCAB/RPV interval is missing. Please enter missing iCAB/RPV interval. If no shot was delivered, then delete shot date.") |>
     validate_cols(predicate = in_set(c("0")),
                   any_missing_first_dose,
-                  description = "Patient has information for later iCAB/RPV shot doses (e.g., shot2 or shot3), but is missing the date of first dose. Please enter date for first dose or shift shot information to remove this gap. If first shot was delivered at a different clinic, please use late_exception to indicate this. Don’t leave shot1 information blank.") |>
+                  description = "Patient has information for later iCAB/RPV injections (e.g., shot2 or shot3), but is missing the date of first injection. Please enter date for first injection or shift shot information to remove this gap. If first shot was delivered at a different clinic, please use late_exception to indicate this. Don’t leave shot1 information blank.") |>
     validate_cols(predicate = in_set(c("0")),
                   missing_pre_icab_vl,
                   description = "Pre-iCAB/RPV VL is missing. Please enter the client's most recent viral load test on or before first iCAB/RPV injection.") |>
     validate_cols(predicate = in_set(c("0")),
                   any_late_dose,
-                  description = "iCAB/RPV dose is late. Check to ensure dose is actually late. Check to ensure that the correct dose is listed (bi-monthly vs. monthly dose). Check to ensure previous shot data is not missing.") |>
+                  description = "iCAB/RPV dose is late. Check to ensure dose is actually late. Check to ensure that the correct interval is listed (bi-monthly vs. monthly injection). Check to ensure previous shot data is not missing.") |>
     validate_cols(predicate = in_set(c("0")),
                   any_early_dose,
-                  description = "iCAB/RPV dose is early. Check to ensure dose is actually early. Check to ensure that the correct dose is listed (monthly vs. bi-monthly dose).") |>
+                  description = "iCAB/RPV dose is early. Check to ensure dose is actually early. Check to ensure that the correct interval is listed (monthly vs. bi-monthly injection).") |>
     validate_cols(predicate = in_set(c("0")),
                   any_shot_in_future,
                   description = "Warning: iCAB/RPV shot date is in future. Check to ensure that the shot date is correct.") |>
@@ -639,10 +639,10 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
       table_name == "vl_summary" & column == "any_vl_in_future" ~ "Viral load date is in the future",
       table_name == "shot_summary" & column == "any_shot_violation" ~ "iCAB/RPV shot dates are not in sequential order",
       table_name == "shot_summary" & column == "any_missing_interval" ~ "iCAB/RPV interval value is missing",
-      table_name == "shot_summary" & column == "any_missing_first_dose" ~ "Patient has information for later iCAB/RPV shot doses (e.g., shot2 or shot3), but is missing the date of first dose",
+      table_name == "shot_summary" & column == "any_missing_first_dose" ~ "Patient has information for later iCAB/RPV injections (e.g., shot2 or shot3), but is missing the date of first dose",
       table_name == "shot_summary" & column == "missing_pre_icab_vl" ~ "Pre-iCAB/RPV VL is missing",
-      table_name == "shot_summary" & column == "any_late_dose" ~ "iCAB/RPV dose is late",
-      table_name == "shot_summary" & column == "any_early_dose" ~ "iCAB/RPV dose is early",
+      table_name == "shot_summary" & column == "any_late_dose" ~ "iCAB/RPV injection is late",
+      table_name == "shot_summary" & column == "any_early_dose" ~ "iCAB/RPV injection is early",
       table_name == "shot_summary" & column == "any_shot_in_future" ~ "iCAB/RPV shot date is in future",
       table_name == "shot_summary" & column == "any_early_date" ~ "iCAB/RPV shot date is before January 22, 2021 (before iCAB/RPV was FDA approved)",
       table_name == "icab_events_whole" & column == "ever_counselled_VALID" ~ "Counsel_ever is not correctly documented",
