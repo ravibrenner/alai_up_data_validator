@@ -58,7 +58,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
            age,
            ethnicity_hispanic,
            contains("race")&!contains("other"),
-           sex_birth,
+           sex,
            contains("risk"),
            insurance_status,
            housing_status,
@@ -94,8 +94,8 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
                   contains('race')&!contains('specify')&!contains("Changes"),
                   description = "invalid value for race variable, should be 0 or 1") |>
     validate_cols(predicate = in_set(c("1","2","3")),
-                  sex_birth,
-                  description = "invalid value for sex_birth, should be 1, 2, or 3") |>
+                  sex,
+                  description = "invalid value for sex, should be 1, 2, or 3") |>
     validate_cols(predicate = in_set(c("0","1")),
                   contains('active'),
                   description = "invalid value for active year, should be 0 or 1") |>
