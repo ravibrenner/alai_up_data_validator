@@ -35,8 +35,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
     # convert some variables to numeric
     mutate(
       across(contains('cd4')&!contains('date'),as.numeric),
-      across(contains('bmi'),as.numeric),
-      age=as.numeric(age)
+      across(contains('bmi'),as.numeric)
     )
   
   # Allow these two columns to be missing entirely, but create them as NA if they
@@ -55,7 +54,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
   missing_demographics <- df |>
     select(vital_status_alive,
            zip_code,
-           age,
+           birth_date,
            ethnicity_hispanic,
            contains("race")&!contains("other"),
            sex,
@@ -84,6 +83,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
            description = "Validation Test") |>
     validate_if(is_uniq(alai_up_uid), description = "ID is unique") |>
     validate_if(!is.na(alai_up_uid) & alai_up_uid != "", description = "ID is not empty") |>
+    validate_if(is.Date(birth_date), description = "Birth date is a valid date format") |>
     validate_cols(predicate = in_set(c("0","1")),
                   vital_status_alive,
                   description = "invalid value for vital_status_alive, should be 0 or 1") |>
