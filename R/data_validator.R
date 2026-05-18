@@ -150,8 +150,8 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
   #not eligible reasons
   update_progress(detail = "Checking 'not eligible' reasons...")
   not_elig_df <- df |>
-    select(alai_up_uid, contains("not_elig")&contains("reason")&!contains("oth")) |>
-    mutate(across(contains("not_elig")&contains("reason")&!contains("oth"),
+    select(alai_up_uid, contains("not_elig")&contains("reason")&!contains("other")) |>
+    mutate(across(contains("not_elig")&contains("reason")&!contains("other"),
                   \(x) str_split(x,","))) |>
     unnest_wider(col = !alai_up_uid,names_sep = "_") |>
     mutate(across(!alai_up_uid,
