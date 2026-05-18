@@ -41,7 +41,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
   
   # Allow these two columns to be missing entirely, but create them as NA if they
   update_progress(detail = "Handling missing columns...")
-  missing_cols <- c("gender_id", "immigration_status_undoc")
+  missing_cols <- c("immigration_status_undoc")
   existing_missing <- missing_cols[!missing_cols %in% names(df)]
   
   if (length(existing_missing) > 0) {
@@ -93,9 +93,6 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
     validate_cols(predicate = in_set(c("0","1")),
                   contains('race')&!contains('specify')&!contains("Changes"),
                   description = "invalid value for race variable, should be 0 or 1") |>
-    validate_cols(predicate = in_set(c("1","2","3","4","5")),
-                  any_of("gender_id"),
-                  description = "gender_id") |>
     validate_cols(predicate = in_set(c("1","2","3")),
                   sex_birth,
                   description = "invalid value for sex_birth, should be 1, 2, or 3") |>
