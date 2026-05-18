@@ -170,6 +170,13 @@ server <- function(input, output, session) {
     # Remove the 'short_message' column from the final_report dataframe within the current_report list
     current_report$final_report <- current_report$final_report |>
       select(-short_message)
+
+    current_report$error_summary <- report()$final_report |>
+      tibble::as_tibble() |>
+      summarize(.by = short_message,
+                error_count = n()) |>
+      arrange(desc(error_count))
+
     # Return the modified report list
     return(current_report)
   })
