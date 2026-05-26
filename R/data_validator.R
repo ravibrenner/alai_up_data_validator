@@ -364,7 +364,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
                   description = "iCAB/RPV interval is missing. Please enter missing iCAB/RPV interval. If no shot was delivered, then delete shot date.") |>
     validate_cols(predicate = in_set(c("0")),
                   any_missing_first_dose,
-                  description = "Patient has information for later iCAB/RPV injections (e.g., shot2 or shot3), but is missing the date of first injection. Please enter date for first injection or shift shot information to remove this gap. If first shot was delivered at a different clinic, please use late_exception to indicate this. Don’t leave shot1 information blank.") |>
+                  description = "Client has information for later iCAB/RPV injections (e.g., shot2 or shot3), but is missing the date of first injection. Please enter date for first injection or shift shot information to remove this gap. If first shot was delivered at a different clinic, please use late_exception to indicate this. Don’t leave shot1 information blank.") |>
     validate_cols(predicate = in_set(c("0")),
                   missing_pre_icab_vl,
                   description = "Pre-iCAB/RPV VL is missing. Please enter the client's most recent viral load test on or before first iCAB/RPV injection.") |>
@@ -552,10 +552,10 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
                   description = "Screen_ever is not correctly documented. If “icab_rpv_screen_ever=1”, then there should be a screening date and outcome. If “icab_rpv_screen_ever=0, then there should be no screen date or outcome.") |>
     validate_cols(predicate = in_set(c(1)),
                   first_counsel_valid,
-                  description = "Missing iCAB/RPV first counseling date. Patient has information for later counseling dates (e.g., counseling 2), but is missing the date or outcome of the first counseling event. Please enter information for first counseling event, or shift counseling information to remove this gap.") |>
+                  description = "Missing iCAB/RPV first counseling date. Client has information for later counseling dates (e.g., counseling 2), but is missing the date or outcome of the first counseling event. Please enter information for first counseling event, or shift counseling information to remove this gap.") |>
     validate_cols(predicate = in_set(c(1)),
                   first_screen_valid,
-                  description = "Missing iCAB/RPV first screening date. Patient has information for later screening dates (e.g., screening 2), but is missing the date or outcome of the first screening event. Please enter information for first screening event, or shift screening information to remove this gap.") |>
+                  description = "Missing iCAB/RPV first screening date. Client has information for later screening dates (e.g., screening 2), but is missing the date or outcome of the first screening event. Please enter information for first screening event, or shift screening information to remove this gap.") |>
     validate_cols(predicate = in_set(c(0)),
                   prescribe_BEFORE_counsel,
                   description = "iCAB/RPV prescription date is before the counseling date. Please check to ensure dates are correct.") |>
@@ -567,10 +567,10 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
                   description = "Date of iCAB/RPV initiation (shot 1 date) is before iCAB/RPV prescription date. Please check to ensure dates are correct.") |>
     validate_cols(predicate = in_set(c(0)),
                   prescribe_NOT_eligible,
-                  description = "Patient has been prescribed iCAB/RPV but screening outcome is 0 (not eligible) or missing. Please check to ensure all data are complete and correct. Possible allowable reason: Patient may have been viremic and not eligible but still prescribed iCAB/RPV.") |>
+                  description = "Client has been prescribed iCAB/RPV but screening outcome is 0 (not eligible) or missing. Please check to ensure all data are complete and correct. Possible allowable reason: Client may have been viremic and not eligible but still prescribed iCAB/RPV.") |>
     validate_cols(predicate = in_set(c(0)),
                   prescribe_NOT_interested,
-                  description = "Patient has been prescribed iCAB/RPV but last counsel outcome is 1, 2, or missing, meaning patient is not interested or not sure. Please check to ensure all data are complete and correct. Is there a missing counseling event when patient decided they were interested?") |>
+                  description = "Client has been prescribed iCAB/RPV but last counsel outcome is 1, 2, or missing, meaning client is not interested or not sure. Please check to ensure all data are complete and correct. Is there a missing counseling event when client decided they were interested?") |>
     validate_cols(predicate = in_set(c(1)),
                   discontinue_valid,
                   description = "iCAB/RPV discontinued date is before first iCAB/RPV shot date. Please check to ensure dates are correct.") |>
@@ -636,7 +636,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
       table_name == "vl_summary" & column == "any_vl_in_future" ~ "Viral load date is in the future",
       table_name == "shot_summary" & column == "any_shot_violation" ~ "iCAB/RPV shot dates are not in sequential order",
       table_name == "shot_summary" & column == "any_missing_interval" ~ "iCAB/RPV interval value is missing",
-      table_name == "shot_summary" & column == "any_missing_first_dose" ~ "Patient has information for later iCAB/RPV injections (e.g., shot2 or shot3), but is missing the date of first dose",
+      table_name == "shot_summary" & column == "any_missing_first_dose" ~ "Client has information for later iCAB/RPV injections (e.g., shot2 or shot3), but is missing the date of first dose",
       table_name == "shot_summary" & column == "missing_pre_icab_vl" ~ "Pre-iCAB/RPV VL is missing",
       table_name == "shot_summary" & column == "any_late_dose" ~ "iCAB/RPV injection is late",
       table_name == "shot_summary" & column == "any_early_dose" ~ "iCAB/RPV injection is early",
@@ -644,8 +644,8 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
       table_name == "shot_summary" & column == "any_early_date" ~ "iCAB/RPV shot date is before January 22, 2021 (before iCAB/RPV was FDA approved)",
       table_name == "icab_events_whole" & column == "ever_counselled_VALID" ~ "Counsel_ever is not correctly documented",
       table_name == "icab_events_whole" & column == "ever_screened_VALID" ~ "Screen_ever is not correctly documented",
-      table_name == "icab_events_whole" & column == "prescribe_NOT_interested" ~ "Patient has been prescribed iCAB/RPV but last counsel outcome is not 'interested'",
-      table_name == "icab_events_whole" & column == "prescribe_NOT_eligible" ~ "Patient has been prescribed iCAB/RPV but screening outcome is 0 (not eligible) or missing",
+      table_name == "icab_events_whole" & column == "prescribe_NOT_interested" ~ "Client has been prescribed iCAB/RPV but last counsel outcome is not 'interested'",
+      table_name == "icab_events_whole" & column == "prescribe_NOT_eligible" ~ "Client has been prescribed iCAB/RPV but screening outcome is 0 (not eligible) or missing",
       table_name == "icab_events_whole" & column == "prescribe_BEFORE_screen" ~ "iCAB/RPV prescription date is before the screening date",
       table_name == "icab_events_whole" & column == "prescribe_BEFORE_counsel" ~ "iCAB/RPV prescription date is before the counseling date",
       table_name == "icab_events_whole" & column == "first_counsel_valid" ~ "Missing iCAB/RPV first counseling date",
