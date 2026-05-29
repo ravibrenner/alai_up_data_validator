@@ -138,6 +138,9 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
     validate_cols(predicate = in_set(c("0","1")),
                   contains('rx')&!contains('date'),
                   description = "invalid value for rx, should be 0 or 1") |>
+    validate_cols(predicate = in_set(c("0","1")),
+                  icab_rpv_accessible,
+                  description = "invalid value for accessible, should be 0 or 1") |>
     validate_cols(predicate = in_set(c("1","2","3","4","5","6")),
                   contains('_interval'),
                   description = "invalid value for Injection [x] interval, should be 1, 2, 3, 4, 5, or 6") |>
@@ -187,6 +190,26 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
     validate_cols(predicate = in_set(c("OK")),
                   !alai_up_uid,
                   description = "invalid disinterest reason, should be 1, 2, 3, 4, 5, 6, or 20") |>
+    add_results(report = report)
+
+  # Not accessible reasons
+  not_accessible_df <- df |>
+    select(alai_up_uid, contains("not_accessible")&contains("reason")&!contains("other")) |>
+    mutate(across(contains("not_accessible")&contains("reason")&!contains("other"),
+                  \(x) str_split(x,","))) |>
+    unnest_wider(col = !alai_up_uid, names_sep = "_") |>
+    mutate(across(!alai_up_uid,
+                  \(x) case_when(
+                    str_trim(x) %in% c("1","2","3","20") ~ "OK",
+                    is.na(x) ~ "OK",
+                    .default = str_extract(cur_column(),"(?<=_)[\\d+]+(?=_)")
+                  )))
+  
+  validate(data = not_accessible_df,
+           description = "Not accessible reasons check") |>
+    validate_cols(predicate = in_set(c("OK")),
+                  !alai_up_uid,
+                  description = "invalid not accessible reason, should be 1, 2, 3, or 20") |>
     add_results(report = report)
   
   
@@ -542,8 +565,8 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
   icab_events_whole=merge(icab_events,icab_2,by="alai_up_uid") |>
     distinct()
   
-  update_progress(detail = "Validating iCAB logic...")
-  validate(data = icab_events_whole, description = "iCAB logic check") |>
+  update_progress(detail = "Validating iCAB/RPV logic...")
+  validate(data = icab_events_whole, description = "iCAB/RPV logic check") |>
     validate_cols(predicate = in_set(c(1)),
                   ever_counselled_VALID,
                   description = "Counsel_ever is not correctly documented. If “icab_rpv_counsel_ever=1”, then there should be a counseling date and outcome. If “icab_rpv_counsel_ever=0, then there should be no counseling date or outcome.") |>
@@ -602,6 +625,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
       table_name == "df"  ~  column,
       table_name == "not_elig_df" ~ str_c("icab_rpv_not_elig_",value,"_reason"),
       table_name == "disinterest_df" ~ str_c("icab_rpv_disinterest_reason_",value),
+      table_name == "not_accessible_df" ~ "icab_rpv_not_accessible_reason",
       table_name == "discontinued_df" ~ "icab_rpv_discontinued_reason",
       table_name == "vl_summary" & column == "any_vl_violation" ~ str_c("hiv_vl_",as.numeric(value)-1,"_date, hiv_vl_",value,"_date"),
       table_name == "vl_summary" & column == "any_missing_vl_result" ~ str_c("hiv_vl_",value,"_result"),
@@ -630,7 +654,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
       table_name == "icab_events_whole" & column == "initiate_after_rx" ~ "icab_rpv_rx_date, icab_rpv_shot1_date"
     ),
     short_message = case_when(
-      table_name %in% c("df", "not_elig_df","disinterest_df","discontinued_df") ~ description,
+      table_name %in% c("df", "not_elig_df","disinterest_df","not_accessible_df","discontinued_df") ~ description,
       table_name == "vl_summary" & column == "any_vl_violation" ~ "VL not in sequential order",
       table_name == "vl_summary" & column == "any_missing_vl_result" ~ "Viral load result missing",
       table_name == "vl_summary" & column == "any_vl_in_future" ~ "Viral load date is in the future",
