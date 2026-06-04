@@ -102,9 +102,9 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
     validate_cols(predicate = in_set(c("0","1")),
                   contains('risk'),
                   description = "invalid value for risk factor, should be 0 or 1") |>
-    validate_cols(predicate = in_set(c("1","2","3","4","5","6","7","8")),
+    validate_cols(predicate = in_set(c("1","2","3","4","5","6","7")),
                   insurance_status,
-                  description = "invalid value for insurance_status, should be 1, 2, 3, 4, 5, 6, 7, or  8") |>
+                  description = "invalid value for insurance_status, should be 1, 2, 3, 4, 5, 6, or 7") |>
     validate_cols(predicate = in_set(c("1","2","3")),
                   housing_status,
                   description = "invalid value for housing_status, should be 1, 2, or 3") |>
@@ -159,7 +159,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
     unnest_wider(col = !alai_up_uid,names_sep = "_") |>
     mutate(across(!alai_up_uid,
                   \(x) case_when(
-                    str_trim(x) %in% c("1","2","3","4","5","6","7","8","9","10","20") ~ "OK",
+                    str_trim(x) %in% c("1","2","3","4","5","6","7","8","9","20") ~ "OK",
                     is.na(x) ~ "OK",
                     .default = str_extract(cur_column(),"(?<=_)[\\d+]+(?=_)")
                   )))
@@ -168,7 +168,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
            description = "Not eligible reasons check") |>
     validate_cols(predicate = in_set(c("OK")),
                   !alai_up_uid,
-                  description = "invalid not eligible reason, should be 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, or 20") |>
+                  description = "invalid not eligible reason, should be 1, 2, 3, 4, 5, 6, 7, 8, 9, or 20") |>
     add_results(report = report)
   
   # Disinterest reasons
