@@ -59,7 +59,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
            contains("race")&!contains("other"),
            sex,
            contains("risk"),
-           insurance_status,
+           health_care_coverage,
            housing_status,
            employment_status,
            poverty_level,
@@ -103,8 +103,11 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
                   contains('risk'),
                   description = "invalid value for risk factor, should be 0 or 1") |>
     validate_cols(predicate = in_set(c("1","2","3","4","5","6","7")),
-                  insurance_status,
-                  description = "invalid value for insurance_status, should be 1, 2, 3, 4, 5, 6, or 7") |>
+                  health_care_coverage,
+                  description = "invalid value for health_care_coverage, should be 1, 2, 3, 4, 5, 6, or 7") |>
+    validate_cols(predicate = in_set(c("1","2","3")),
+                  secondary_payor,
+                  description = "invalid value for secondary_payor, should be 1, 2, or 3") |>
     validate_cols(predicate = in_set(c("1","2","3")),
                   housing_status,
                   description = "invalid value for housing_status, should be 1, 2, or 3") |>
