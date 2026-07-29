@@ -225,7 +225,7 @@ data_validator <- function(filename,sheet_choice, progress_updater = NULL) {
     unnest_wider(col = !alai_up_uid, names_sep = "_") |>
     mutate(across(!alai_up_uid,
                   \(x) case_when(
-                    str_trim(x) %in% c("1","2","3","4","5","6","7","8","9","10","20") ~ "OK",
+                    str_trim(x) %in% c("1","2","3","4","5","6","7","8","9","10","11","20") ~ "OK",
                     is.na(x) ~ "OK",
                     .default = str_extract(cur_column(),"(?<=_)[\\d+]+(?=_)")
                   )))
