@@ -14,12 +14,48 @@ library(DT)
 options(shiny.maxRequestSize = 30 * 1024^2)
 source("R/data_validator.R")
 
+# Define the app's theme using bslib for easy color customization
+alai_theme <- bs_theme(
+  version = 5,
+  # Set main background and foreground colors
+  bg = "#FFFFFF",
+  fg = "#000000",
+  # Tab/navigation colors
+  "nav-tabs-link-active-bg" = "#100C48",
+  "nav-tabs-link-active-color" = "#FFFFFF",
+  "nav-tabs-border-color" = "#100C48"
+) |>
+  bs_add_rules(
+    ".bslib-page-sidebar .sidebar-header {
+     background-color: #100C48 !important; color: #FFFFFF !important; 
+      }
+    .bslib-sidebar-layout > .sidebar { 
+     background-color: #3D748D !important; color: #FFFFFF !important; 
+      }
+    .bslib-sidebar-layout > .sidebar a:hover {
+     background-color: #B5D2DF !important; color: #000000 !important;
+      }
+    .btn {
+      background-color: #ccc !important;
+      border-color: #ccc !important;
+    }
+    .btn:hover {
+      background-color: #A6A6A6 !important;
+      border-color: #A6A6A6 !important;
+    }
+    .bslib-page-sidebar>.navbar {
+      background-color: #100C48 !important;
+      color: #FFFFFF !important;
+    }"
+  )
+
 ui <- page_sidebar(
   title = div(
-    "Data Validation App",
+    "Data Validator App",
     style = "display: flex; justify-content: space-between; align-items: center; width: 100%;",
     actionButton("reset_app", "Reset", icon = icon("sync"), class = "btn-sm")
   ),
+  theme = alai_theme, # Apply the custom theme
   useShinyjs(),
 
   sidebar = sidebar(
@@ -34,7 +70,8 @@ ui <- page_sidebar(
 
   navset_tab(
     nav_panel("Home",
-              p("Complete instructions will go here."),
+              p("Complete instructions are available in the ALAI UP Dashboard Toolkit.
+                Brief instructions are provided here:"),
               p("1. Upload an Excel file containing the data you want to validate."),
               p("2. Select the sheet within the Excel file that contains the data."),
               p("3. Enter the name of the site (this will be used in the report filename)."),
